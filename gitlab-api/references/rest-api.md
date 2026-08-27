@@ -3,7 +3,7 @@
 Base URL: `https://<host>/api/v4` (prefix with the relative URL root if the instance uses one, e.g. `https://intranet.example.com/gitlab/api/v4`)
 Full docs: https://docs.gitlab.com/api/rest/ — browse per-resource pages from there, e.g. `.../api/issues/`, `.../api/merge_requests/`
 
-Auth header: `PRIVATE-TOKEN: $GITLAB_TOKEN` (or `Authorization: Bearer $GITLAB_TOKEN` — both are supported).
+Auth header: `PRIVATE-TOKEN: $GITLAB_TOKEN` (or `Authorization: Bearer $GITLAB_TOKEN` — both are supported). `$GITLAB_TOKEN` here is a placeholder for whichever environment variable name was resolved per `SKILL.md` → "1. Authentication" (candidate discovery, ask-if-ambiguous) — substitute the real variable name in every command below.
 
 Always pass `--fail-with-body` to curl so 4xx/5xx responses don't get mistaken for results.
 

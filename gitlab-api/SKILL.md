@@ -24,26 +24,33 @@ Only then start making requests.
 
 ## 1. Authentication
 
-Authenticate **exclusively** through the `GITLAB_TOKEN` environment variable. This is a hard rule, not a preference:
+Authenticate **exclusively** through an environment variable — never through a file or a CLI's stored credentials. This is a hard rule, not a preference. The variable's exact **name** is not fixed to `GITLAB_TOKEN`: real setups often carry several GitLab-token-shaped candidates side by side (`GITLAB_TOKEN`, `GITLAB_BOT_TOKEN`, `GITLAB_PERSONAL_TOKEN`, `GITLAB_ANPD_PERSONAL_TOKEN`, …), so discover which ones exist before picking one.
 
-- Check for it with a shell command, e.g. `[ -n "$GITLAB_TOKEN" ] && echo present || echo missing`.
+- **List candidate variable names only — never their values:**
+  ```bash
+  env | grep -iE '^[A-Z0-9_]*GITLAB[A-Z0-9_]*TOKEN[A-Z0-9_]*=' | cut -d= -f1
+  ```
+  `cut -d= -f1` keeps only the left-hand side of each `NAME=value` line, so no token value is ever displayed, printed, or logged — only labels. Widen the pattern (e.g. also matching `GL_TOKEN`) if the obvious one turns up nothing.
+- **Exactly one candidate** → use it, referring to it as `$GITLAB_TOKEN` in the rest of this doc regardless of its actual name (every command below is written against that placeholder — substitute the real name you resolved).
+- **Zero candidates** → treat auth as missing (see below).
+- **More than one candidate** → do not guess which one is "the" token. Ask the user which variable to use, unless something in the conversation already disambiguates it (e.g. the user already named one, or the task explicitly targets an org/instance that only one candidate's name plausibly maps to). When genuinely in doubt, ask — silently picking one risks acting under the wrong identity or scope.
 - **Never** look anywhere else for it — not in `.netrc`, `.git-credentials`, `.env` files, CI/CD variable files, `glab` CLI config, editor/IDE settings, OS keychains, or any file inside a repo. Even if a file appears to contain a GitLab token, don't use it. The environment variable is the single source of truth by design: it keeps token discovery predictable and avoids silently picking up a stale or wrong-scoped credential sitting in some file.
 - For the same reason, **don't fall back to the `glab` CLI** to work around a missing token — `glab` reads its own stored credentials, which routes around this rule.
-- If `GITLAB_TOKEN` is not set, stop and tell the user rather than working around it. Nearly every useful endpoint requires auth, and unauthenticated calls are heavily rate-limited anyway.
+- If no candidate variable is set, stop and tell the user rather than working around it. Nearly every useful endpoint requires auth, and unauthenticated calls are heavily rate-limited anyway.
 
-When it's missing, tell the user how to set it up:
+When none is set, tell the user how to set one up:
 
 1. Create a Personal Access Token in GitLab: **avatar → Edit profile → Access tokens**, or go directly to `https://<gitlab-host>/-/user_settings/personal_access_tokens`.
 2. Grant the right scope:
    - `api` — full read/write. Needed for anything that creates or changes data, and for **all** GraphQL mutations.
    - `read_api` — read-only. Enough for listing/reading via REST and for GraphQL queries.
-3. Export it before starting a session:
+3. Export it before starting a session, under any GitLab-token-shaped name (`GITLAB_TOKEN` by default, or a more specific name like `GITLAB_BOT_TOKEN` if the user already has a naming convention):
    ```bash
    export GITLAB_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx"
    ```
 4. To persist it across sessions, add that line to `~/.bashrc`, `~/.zshrc`, or the equivalent shell profile.
 
-Personal, project, and group access tokens, OAuth 2.0 tokens, and CI/CD job tokens all work as values for this variable — the skill doesn't care which type it is, only that it arrives via the environment.
+Personal, project, and group access tokens, OAuth 2.0 tokens, and CI/CD job tokens all work as values for this variable — the skill doesn't care which type it is or what its name is, only that it arrives via a discoverable environment variable.
 
 **Never echo the token** into output shown to the user, into a file, or into a commit. Reference it as `$GITLAB_TOKEN` in commands; don't expand it.
 
