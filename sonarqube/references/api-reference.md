@@ -1,10 +1,13 @@
 # SonarQube Web API Reference
 
 Endpoint catalog for the calls this skill makes. All calls authenticate with
-`Authorization: Bearer $SONAR_TOKEN` (see `SKILL.md` → "1. Authentication").
-`$SONAR_URL` is the resolved host (`SONAR_HOST_URL` or `http://localhost:9000`
-default). Full official reference is served by the SonarQube instance itself
-at `$SONAR_URL/web_api` — fetch that for anything not covered here, since the
+`Authorization: Bearer $SONAR_TOKEN` — a placeholder for whichever environment
+variable name was resolved per `SKILL.md` → "1. Authentication" (candidate
+discovery, ask-if-ambiguous); substitute the real variable name in every
+command below. `$SONAR_URL` is the resolved host (`SONAR_HOST_URL` or
+`http://localhost:9000` default). Full official reference is served by the
+SonarQube instance itself at `$SONAR_URL/web_api` — fetch that for anything
+not covered here, since the
 API surface differs slightly across SonarQube versions.
 
 ## Measures

@@ -25,14 +25,30 @@ Resolve these in order before touching code or the API:
 
 ## 1. Authentication
 
-Authenticate **exclusively** through the `SONAR_TOKEN` environment variable —
-a **User Token**, not a Project Analysis Token (analysis tokens can submit
-scans but cannot read or transition issues).
+Authenticate **exclusively** through an environment variable holding a
+**User Token**, not a Project Analysis Token (analysis tokens can submit
+scans but cannot read or transition issues). The variable's exact **name** is
+not fixed to `SONAR_TOKEN`: real setups often carry several SonarQube-token-
+shaped candidates side by side (`SONAR_TOKEN`, `SONAR_BOT_TOKEN`,
+`SONARQUBE_PERSONAL_TOKEN`, …), so discover which ones exist before picking
+one.
 
-```bash
-[ -n "$SONAR_TOKEN" ] && echo present || echo missing
-```
-
+- **List candidate variable names only — never their values:**
+  ```bash
+  env | grep -iE '^[A-Z0-9_]*SONAR[A-Z0-9_]*TOKEN[A-Z0-9_]*=' | cut -d= -f1
+  ```
+  `cut -d= -f1` keeps only the left-hand side of each `NAME=value` line, so no
+  token value is ever displayed, printed, or logged — only labels.
+- **Exactly one candidate** → use it, referring to it as `$SONAR_TOKEN` in the
+  rest of this doc regardless of its actual name (every command below is
+  written against that placeholder — substitute the real name you resolved).
+- **Zero candidates** → treat auth as missing (see below).
+- **More than one candidate** → do not guess which one is "the" token. Ask
+  the user which variable to use, unless something in the conversation
+  already disambiguates it (e.g. the user already named one, or the task
+  explicitly targets a project/org that only one candidate's name plausibly
+  maps to). When genuinely in doubt, ask — silently picking one risks acting
+  under the wrong identity or permission set.
 - This workflow **never** reads the token from a file — not `.env`,
   `.env.local`, CI variable files, IDE settings, or any file inside a repo —
   and never prompts for it over stdin during the API-driven workflow. It is
@@ -42,15 +58,17 @@ scans but cannot read or transition issues).
   authenticated calls too). Send it only in an `Authorization: Bearer
   $SONAR_TOKEN` header. Never copy it into a file, commit, test fixture, or
   message to the user.
-- **If it is missing, stop.** Do not call the API, do not fall back to an
-  unauthenticated request, and do not guess a token. Give the user this setup
-  procedure and end the workflow:
+- **If no candidate variable is set, stop.** Do not call the API, do not fall
+  back to an unauthenticated request, and do not guess a token. Give the user
+  this setup procedure and end the workflow:
 
   1. In SonarQube → avatar → **My Account** → **Security** → **Generate
      Tokens** → choose **User Token**. The account needs **Browse** and
      **Administer Issues** permission on the target project (and on every
      other project this same global token will be used for).
-  2. Export it in the shell profile so every session already has it:
+  2. Export it in the shell profile so every session already has it, under
+     any SonarQube-token-shaped name (`SONAR_TOKEN` by default, or a more
+     specific name if the user already has a naming convention):
      ```bash
      export SONAR_TOKEN="…"
      ```
@@ -138,7 +156,14 @@ Otherwise:
 
    `-e SONAR_HOST_URL` / `-e SONAR_TOKEN` (no `=value`) forward the values
    from the **calling shell's** environment into the container without ever
-   placing them in argv or `docker inspect` output. `--network host` is
+   placing them in argv or `docker inspect` output. If the variable resolved
+   in step 1 has a different name (e.g. `SONAR_BOT_TOKEN`), export it under
+   the name the scanner expects **before** the `docker run` call —
+   `export SONAR_TOKEN="$SONAR_BOT_TOKEN"` — then keep using the bare
+   `-e SONAR_TOKEN` form shown above; putting `-e SONAR_TOKEN="$SONAR_BOT_TOKEN"`
+   directly on the `docker run` command line would work too but exposes the
+   value in argv/`docker inspect`, which the bare form exists to avoid.
+   `--network host` is
    Linux-only and is what lets a `localhost:9000` server on the host be
    reachable from inside the container; it does not work under Docker Desktop
    on macOS/Windows, where the host's SonarQube must instead be reached via
